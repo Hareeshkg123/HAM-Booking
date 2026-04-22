@@ -154,16 +154,46 @@
 				    			</div>
           			</div>
           		</div>
-          		<div class="col-md-12 hotel-single ftco-animate mb-5 mt-4">
-          			<h4 class="mb-5">Check Availability &amp; Booking</h4>
-          			<form action="/url/to/submit/" method="post" class="form">
+		  		<div class="col-md-12 hotel-single ftco-animate mb-5 mt-4">
+		  			<h4 class="mb-5">Check Availability &amp; Booking</h4>
+
+					{# Show booking status for current user if any #}
+					{% if user_booking %}
+						{% if user_booking.status == 'pending' %}
+							<div class="alert alert-warning" role="alert">
+								Your booking is pending payment. We redirected you to Stripe Checkout — once payment completes your booking will be confirmed.
+							</div>
+						{% elif user_booking.status == 'confirmed' %}
+							<div class="alert alert-success" role="alert">
+								Booking confirmed ✓ — thank you! Check your profile or email for details.
+							</div>
+						{% elif user_booking.status == 'cancelled' %}
+							<div class="alert alert-danger" role="alert">
+								This booking was cancelled.
+							</div>
+						{% endif %}
+					{% else %}
+						{# Optionally show messages based on query params (redirects from Stripe) #}
+						{% if request.GET.booking == 'success' %}
+							<div class="alert alert-info" role="alert">
+								You returned from Stripe. If payment completed, your booking will be confirmed shortly.
+							</div>
+						{% elif request.GET.booking == 'cancelled' %}
+							<div class="alert alert-secondary" role="alert">
+								Payment was cancelled. Your booking remains pending; you can try again.
+							</div>
+						{% endif %}
+					{% endif %}
+
+		  			<!-- Post to the current property detail URL so the view's post() handler runs -->
+		  			<form action="" method="post" class="form">
 						{% csrf_token %}
 						{% bootstrap_form form %}
 						{% buttons %}
 							<button type="submit" class="btn btn-primary">Check Availability</button>
 						{% endbuttons %}
 					</form>
-          		</div>
+		  		</div>
           		<div class="col-md-12 hotel-single ftco-animate mb-5 mt-4">
           			<h4 class="mb-4">Review &amp; Ratings</h4>
           			<div class="row">

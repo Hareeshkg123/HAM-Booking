@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,11 +21,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
+# Load environment variables from a local .env file (keeps secrets out of git)
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-2hssdn31h6z=b6ei36mkzlg1rwj2v!+66!-*vk!k+gf3saes%7'
+# Read SECRET_KEY from the environment, fallback to the existing dev key if not set
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-2hssdn31h6z=b6ei36mkzlg1rwj2v!+66!-*vk!k+gf3saes%7')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Allow DEBUG to be set via env (useful for CI / production parity)
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('1', 'true', 'yes')
 
 ALLOWED_HOSTS = []
 
@@ -141,3 +148,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Stripe configuration (read from environment)
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+
+# Redirect users to home after logout
+LOGOUT_REDIRECT_URL = '/'

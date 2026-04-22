@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import profile , profile_edit , signup , myreservation
+from .views import profile , profile_edit , signup , myreservation, become_host
 
 
 app_name = 'accounts'
@@ -9,4 +9,8 @@ urlpatterns = [
     path('profile/',profile,name='profile'),
     path('reservation/',myreservation,name='reservation'),
     path('profile/edit', profile_edit , name='profile_edit')
+]
+
+urlpatterns += [
+    path('become-host/', become_host, name='become_host')
 ]

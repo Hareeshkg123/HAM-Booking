@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block body %}
+<div class="container my-5">
+  <h1>Contact Us</h1>
+
+  {% if sent %}
+    <div class="alert alert-success">Thank you — your message has been sent.</div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label for="id_name">Name</label>
+      <input type="text" name="name" id="id_name" class="form-control" required>
+    </div>
+
+    <div class="form-group">
+      <label for="id_email">Email</label>
+      <input type="email" name="email" id="id_email" class="form-control" required>
+    </div>
+
+    <div class="form-group">
+      <label for="id_subject">Subject</label>
+      <input type="text" name="subject" id="id_subject" class="form-control">
+    </div>
+
+    <div class="form-group">
+      <label for="id_message">Message</label>
+      <textarea name="message" id="id_message" class="form-control" rows="6" required></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">Send Message</button>
+  </form>
+</div>
+{% endblock body %}

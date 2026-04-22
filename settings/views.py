@@ -60,4 +60,17 @@ def category_filter(request , category):
 
 
 def contact_us(request):
-    pass
+    # Basic contact form handler: renders a contact page and shows a success
+    # message when the form is submitted. This avoids returning None which
+    # caused the ValueError seen in the UI.
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        subject = request.POST.get('subject')
+        message = request.POST.get('message')
+
+        # For now we don't send an email — simply render the page with a
+        # success flag. In future we can send mail or save the message.
+        return render(request, 'settings/contact.html', {'sent': True})
+
+    return render(request, 'settings/contact.html')

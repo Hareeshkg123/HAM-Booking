@@ -5,3 +5,9 @@ class PropertyBookForm(forms.ModelForm):
     class Meta:
         model = PropertyBook
         fields = ['date_from','date_to','guest','children']
+
+
+class PropertyForm(forms.ModelForm):
+    class Meta:
+        model = Property
+        fields = ['name', 'image', 'price', 'description', 'places', 'category']

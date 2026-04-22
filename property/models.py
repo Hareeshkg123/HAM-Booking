@@ -85,8 +85,14 @@ class PropertyBook(models.Model):
     property = models.ForeignKey(Property, related_name='book_property', on_delete=models.CASCADE)
     date_from = models.DateField(default=timezone.now)
     date_to = models.DateField(default=timezone.now)
-    guest = models.IntegerField(max_length=2 , choices= COUNT)
-    children =  models.IntegerField(max_length=2 , choices= COUNT)
+    guest = models.IntegerField( choices= COUNT)
+    children =  models.IntegerField( choices= COUNT)
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('cancelled', 'Cancelled'),
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
     def __str__(self):
         return str(self.property)

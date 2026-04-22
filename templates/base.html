@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-  <title>Egypt Hotels</title>
+  <title>{{ myfooter.site_name }}</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
@@ -47,10 +47,24 @@
           <li class="nav-item active"><a href="{% url 'property:property_list' %}" class="nav-link">Properties</a></li>
           <li class="nav-item"><a href="{% url 'blog:post_list' %}" class="nav-link">Blog</a></li>
           <li class="nav-item"><a href="{% url 'home:contact_us' %}" class="nav-link">Contact</a></li>
-          <li class="nav-item cta"><a href="contact.html" class="nav-link"><span>Add listing</span></a></li>
+          {% if request.user.is_authenticated %}
+            {% with profile=request.user.user_profile.first %}
+              {% if profile and profile.is_host %}
+                <li class="nav-item cta"><a href="{% url 'property:property_add' %}" class="nav-link"><span>Add listing</span></a></li>
+              {% else %}
+                <li class="nav-item cta"><a href="{% url 'accounts:become_host' %}" class="nav-link"><span>Become host</span></a></li>
+              {% endif %}
+            {% endwith %}
+          {% endif %}
           
           {% if request.user.is_authenticated %}
-            <li class="nav-item cta"><a href="{% url 'accounts:profile' %}" class="nav-link">Profile</a></li>
+            <li class="nav-item"><a href="{% url 'accounts:profile' %}" class="nav-link">Hi, {{ request.user.username }}</a></li>
+            <li class="nav-item">
+              <form method="post" action="{% url 'logout' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="nav-link btn btn-link" style="padding:0;">Logout</button>
+              </form>
+            </li>
 
           {% else %}
             <li class="nav-item cta"><a href="{% url 'login' %}" class="nav-link"><span>Login</span></a></li>

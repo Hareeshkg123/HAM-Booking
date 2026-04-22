@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from property.models import *
+from django.contrib.auth.decorators import login_required
 
 # Create your views here.
 
@@ -65,3 +66,17 @@ def myreservation(request):
 def mylisting(request):
     property_list = Property.objects.filter(owner=request.user)
     return render(request , 'profile/mylisting.html', {'property_list' : property_list})
+
+
+@login_required
+def become_host(request):
+    # Allow users to enable hosting for their account. This is a simple
+    # immediate enable; in production you may want an approval workflow.
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    if request.method == 'POST':
+        profile.is_host = True
+        profile.save()
+        messages.success(request, 'You are now a host. You can add listings.')
+        return redirect(reverse('accounts:profile'))
+
+    return render(request, 'profile/become_host_confirm.html', {})
