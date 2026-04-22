@@ -6,6 +6,8 @@ from django.contrib.auth import authenticate, login
 from django.contrib import messages
 from property.models import *
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
+import stripe
 
 # Create your views here.
 
@@ -59,9 +61,65 @@ def profile_edit(request):
     
     
 
+@login_required
 def myreservation(request):
-    property_list = PropertyBook.objects.filter(user=request.user)
-    return render(request , 'profile/reservations.html', {'property_list' : property_list})
+    # Build a list of bookings with extra context (can_cancel) for the template
+    from django.utils import timezone
+    bookings = PropertyBook.objects.filter(user=request.user).order_by('-id')
+    booking_entries = []
+    today = timezone.localdate()
+    # Attempt lightweight reconciliation for pending bookings that have a saved
+    # stripe_session_id: if Stripe reports the session is paid, mark confirmed.
+    stripe_key = getattr(settings, 'STRIPE_SECRET_KEY', None)
+    if stripe_key:
+        try:
+            stripe.api_key = stripe_key
+        except Exception:
+            stripe.api_key = None
+    for b in bookings:
+        # If booking appears pending but has a Stripe session id, try to reconcile
+        if b.status == 'pending' and getattr(b, 'stripe_session_id', None) and stripe.api_key:
+            try:
+                sess = stripe.checkout.Session.retrieve(b.stripe_session_id)
+                payment_status = sess.get('payment_status') or getattr(sess, 'payment_status', None)
+                if payment_status == 'paid':
+                    b.status = 'confirmed'
+                    b.save()
+            except Exception:
+                # Non-fatal: leave booking as-is if Stripe lookup fails
+                pass
+    for b in bookings:
+        can_cancel = False
+        try:
+            if b.status != 'cancelled' and b.date_from > today:
+                can_cancel = True
+        except Exception:
+            can_cancel = False
+        booking_entries.append({'booking': b, 'can_cancel': can_cancel})
+
+    return render(request, 'profile/reservations.html', {'booking_list': booking_entries})
+
+
+@login_required
+def cancel_reservation(request, pk):
+    # Allow the booking owner to cancel a booking before check-in date
+    from django.utils import timezone
+    try:
+        booking = PropertyBook.objects.get(id=pk)
+    except PropertyBook.DoesNotExist:
+        return redirect('accounts:reservation')
+
+    if booking.user != request.user:
+        return redirect('accounts:reservation')
+
+    today = timezone.localdate()
+    if request.method == 'POST':
+        if booking.date_from > today and booking.status != 'cancelled':
+            booking.status = 'cancelled'
+            booking.save()
+        return redirect('accounts:reservation')
+    # If GET, redirect back
+    return redirect('accounts:reservation')
 
 def mylisting(request):
     property_list = Property.objects.filter(owner=request.user)

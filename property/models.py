@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
+import builtins
 
 
 # Create your models here.
@@ -36,6 +37,7 @@ class PropertyImages(models.Model):
     image = models.ImageField(upload_to='propertyimages/')
     def __str__(self):
         return str(self.property)
+    
 
  
     
@@ -83,17 +85,35 @@ COUNT = (
 class PropertyBook(models.Model):
     user = models.ForeignKey(User, related_name='book_owner', on_delete=models.CASCADE)
     property = models.ForeignKey(Property, related_name='book_property', on_delete=models.CASCADE)
+    stripe_session_id = models.CharField(max_length=255, null=True, blank=True)
     date_from = models.DateField(default=timezone.now)
     date_to = models.DateField(default=timezone.now)
     guest = models.IntegerField( choices= COUNT)
     children =  models.IntegerField( choices= COUNT)
     STATUS_CHOICES = (
-        ('pending', 'Pending'),
-        ('confirmed', 'Confirmed'),
+        ('pending', 'Booked'),
+        ('confirmed', 'Booked'),
         ('cancelled', 'Cancelled'),
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
     def __str__(self):
         return str(self.property)
+    
+    @builtins.property
+    def nights(self):
+        """Return number of nights for the booking (at least 1)."""
+        try:
+            delta = self.date_to - self.date_from
+            return max(1, delta.days)
+        except Exception:
+            return 1
+
+    @builtins.property
+    def total_cost(self):
+        """Return total cost (price per night * nights)."""
+        try:
+            return int(self.property.price) * self.nights
+        except Exception:
+            return 0
             

@@ -161,7 +161,7 @@
 					{% if user_booking %}
 						{% if user_booking.status == 'pending' %}
 							<div class="alert alert-warning" role="alert">
-								Your booking is pending payment. We redirected you to Stripe Checkout — once payment completes your booking will be confirmed.
+								Your booking is pending payment. We redirected you to Stripe Checkout — once payment completes your booking will be .
 							</div>
 						{% elif user_booking.status == 'confirmed' %}
 							<div class="alert alert-success" role="alert">
@@ -184,25 +184,16 @@
 							</div>
 						{% endif %}
 					{% endif %}
-
-		  			<!-- Post to the current property detail URL so the view's post() handler runs -->
-		  			<form action="" method="post" class="form">
+				
+					<!-- Post to the current property detail URL so the view's post() handler runs -->
+					<form action="" method="post" class="form">
 						{% csrf_token %}
 						{% bootstrap_form form %}
 						{% buttons %}
 							<button type="submit" class="btn btn-primary">Check Availability</button>
 						{% endbuttons %}
 					</form>
-		  		</div>
-          		<div class="col-md-12 hotel-single ftco-animate mb-5 mt-4">
-          			<h4 class="mb-4">Review &amp; Ratings</h4>
-          			<div class="row">
-          				<div class="col-md-6">
-          					<form method="post" class="star-rating">
-										  <div class="form-check">
-												<input type="checkbox" class="form-check-input" id="exampleCheck1">
-												<label class="form-check-label" for="exampleCheck1">
-													<p class="rate"><span><i class="icon-star"></i><i class="icon-star"></i><i class="icon-star"></i><i class="icon-star"></i><i class="icon-star"></i> 100 Ratings</span></p>
+					<p class="rate"><span><i class="icon-star"></i><i class="icon-star"></i><i class="icon-star"></i><i class="icon-star"></i><i class="icon-star"></i> 100 Ratings</span></p>
 												</label>
 										  </div>
 										  <div class="form-check">
@@ -283,4 +274,77 @@
     </section> <!-- .section -->
 
   
-    {% endblock body %}
+			{# Show a small on-screen confirmation popup (green check) when payment is confirmed. #}
+			<style>
+			  /* Simple confirmation popup styles */
+			  #payment-confirmation-popup {
+				position: fixed;
+				right: 20px;
+				top: 20px;
+				z-index: 2000;
+				min-width: 320px;
+				max-width: 420px;
+				background: #fff;
+				border-radius: 8px;
+				box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+				display: none;
+				align-items: center;
+				padding: 14px 16px;
+				font-family: inherit;
+			  }
+			  #payment-confirmation-popup.visible { display: flex; }
+			  #payment-confirmation-popup .icon { width: 48px; height: 48px; flex: 0 0 48px; margin-right: 12px; }
+			  #payment-confirmation-popup .text { flex: 1 1 auto; }
+			  #payment-confirmation-popup h5 { margin: 0 0 4px 0; font-size: 16px; }
+			  #payment-confirmation-popup p { margin: 0; color: #4b5563; font-size: 14px; }
+			  #payment-confirmation-popup .close-btn { margin-left: 12px; background: transparent; border: none; color: #6b7280; font-size: 18px; cursor: pointer; }
+			  .check-bg { background: #16a34a; border-radius: 50%; display:flex; align-items:center; justify-content:center; }
+			  .check-bg svg { fill: #fff; width:20px; height:20px; }
+			</style>
+
+			<div id="payment-confirmation-popup" role="status" aria-live="polite">
+			  <div class="icon">
+				<div class="check-bg" style="width:48px;height:48px;">
+				  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+					<path d="M9.00039 16.2004L4.80039 12.0004L3.40039 13.4004L9.00039 19.0004L21.0004 7.00039L19.6004 5.60039L9.00039 16.2004Z"/>
+				  </svg>
+				</div>
+			  </div>
+			  <div class="text">
+				<h5>Payment successful</h5>
+				<p>Booking confirmed — thank you! Check your profile or email for details.</p>
+			  </div>
+			  <button class="close-btn" aria-label="Close confirmation" title="Close">&times;</button>
+			</div>
+
+			<script>
+			  window.addEventListener('load', function() {
+				try {
+				  var paymentConfirmed = ("{{ payment_confirmed|yesno:'true,false' }}") === "true";
+				  var bookingParam = "{{ request.GET.booking|default_if_none:'' }}";
+				  var sessionId = "{{ request.GET.session_id|default_if_none:'' }}";
+				  console.log('Booking page values:', { paymentConfirmed: paymentConfirmed, bookingParam: bookingParam, sessionId: sessionId });
+
+				  var popup = document.getElementById('payment-confirmation-popup');
+				  var closeBtn = popup && popup.querySelector('.close-btn');
+
+				  function showPopup() {
+					if (!popup) return;
+					popup.classList.add('visible');
+					setTimeout(function() { popup.classList.remove('visible'); }, 6000);
+				  }
+
+				  if (paymentConfirmed || bookingParam === 'success') {
+					showPopup();
+				  }
+
+				  if (closeBtn) {
+					closeBtn.addEventListener('click', function() { popup.classList.remove('visible'); });
+				  }
+				} catch (e) {
+				  console.log('Payment confirmation popup error', e);
+				}
+			  });
+			</script>
+
+		{% endblock body %}

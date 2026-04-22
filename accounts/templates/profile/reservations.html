@@ -27,43 +27,33 @@
 			</div>
 			<div class="col-lg-9">
 				<div class="row">
-					{% for property in property_list %}
-					<div class="col-md-4 ftco-animate">
-						<div class="destination">
-							<a href="{{property.get_absolute_url}}"
-								class="img img-2 d-flex justify-content-center align-items-center"
-								style="background-image: url({{property.property.image.url}});">
-								<div class="icon d-flex justify-content-center align-items-center">
-									<span class="icon-search2"></span>
+					{% for entry in booking_list %}
+					{% with booking=entry.booking %}
+					<div class="col-md-6 ftco-animate mb-3">
+						<div class="destination p-3 border rounded">
+							<div class="d-flex">
+								<div class="one flex-grow-1">
+									<h4><a href="{{ booking.property.get_absolute_url }}">{{ booking.property.name }}</a></h4>
+									<p class="mb-1"><strong>Dates:</strong> {{ booking.date_from }} &mdash; {{ booking.date_to }}</p>
+									<p class="mb-1"><strong>Total:</strong> ${{ booking.total_cost }}</p>
+									<p class="mb-0"><strong>Status:</strong>
+										{% if booking.status == 'confirmed' %}Booked{% elif booking.status == 'cancelled' %}Cancelled{% else %}Pending{% endif %}
+									</p>
 								</div>
-							</a>
-							<div class="text p-3">
-								<div class="d-flex">
-									<div class="one">
-										<h3><a href="{{property.property.get_absolute_url}}">{{property.property.name}}</a></h3>
-										<p class="rate">
-											<i class="icon-star"></i>
-											<i class="icon-star"></i>
-											<i class="icon-star"></i>
-											<i class="icon-star"></i>
-											<i class="icon-star-o"></i>
-											<span>8 Rating</span>
-										</p>
-									</div>
-									<div class="two">
-										<span
-											class="price per-price">${{property.property.price}}<br><small>/night</small></span>
-									</div>
+								<div class="ml-3">
+									{% if entry.can_cancel %}
+									<form method="post" action="{% url 'accounts:cancel_reservation' booking.id %}">
+										{% csrf_token %}
+										<button class="btn btn-outline-danger" type="submit">Cancel booking</button>
+									</form>
+									{% else %}
+									<button class="btn btn-secondary" disabled>Cannot cancel</button>
+									{% endif %}
 								</div>
-								<p>{{property.description|safe | truncatewords:30}}</p>
-								<hr>
-								<p class="bottom-area d-flex">
-									<span><i class="icon-map-o"></i> {{property.places}}</span>
-									<span class="ml-auto"><a href="{{property.get_absolute_url}}">Add Review</a></span>
-								</p>
 							</div>
 						</div>
 					</div>
+					{% endwith %}
 					{% endfor %}
 				</div>
 

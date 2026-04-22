@@ -26,45 +26,44 @@
 			<div class="col-lg-9">
 				<div class="row">
 					
-					{% for property in user_reservation %}	
-						<div class="col-md-4 ftco-animate">
-							<div class="destination">
-								<a href="{{property.get_absolute_url}}"
-									class="img img-2 d-flex justify-content-center align-items-center"
-									style="background-image: url('{{property.property.image.url}}');">
-									<div class="icon d-flex justify-content-center align-items-center">
-										<span class="icon-search2"></span>
-									</div>
-								</a>
-								<div class="text p-3">
-									<div class="d-flex">
-										<div class="one">
-											<h3><a href="{{property.get_absolute_url}}">{{property}}</a></h3>
-											<p class="rate">
-												<i class="icon-star"></i>
-												<i class="icon-star"></i>
-												<i class="icon-star"></i>
-												<i class="icon-star"></i>
-												<i class="icon-star-o"></i>
-												<span>8 Rating</span>
-											</p>
+					{% for prop in property_list %}
+							<div class="col-md-4 ftco-animate">
+								<div class="destination">
+									<a href="{{ prop.get_absolute_url }}"
+										class="img img-2 d-flex justify-content-center align-items-center"
+										style="background-image: url('{{ prop.image.url }}');">
+										<div class="icon d-flex justify-content-center align-items-center">
+											<span class="icon-search2"></span>
 										</div>
-										<div class="two">
-											<span class="price per-price">${{property.property.price}}<br><small>/night</small></span>
+									</a>
+									<div class="text p-3">
+										<div class="d-flex">
+											<div class="one">
+												<h3><a href="{{ prop.get_absolute_url }}">{{ prop.name }}</a></h3>
+												<p class="rate">
+													<i class="icon-star"></i>
+													<i class="icon-star"></i>
+													<i class="icon-star"></i>
+													<i class="icon-star"></i>
+													<i class="icon-star-o"></i>
+													<span>8 Rating</span>
+												</p>
+											</div>
+											<div class="two">
+												<span class="price per-price">${{ prop.price }}<br><small>/night</small></span>
+											</div>
 										</div>
+										<p>{{ prop.description|safe|truncatewords:20 }}</p>
+										<hr>
+										<p class="bottom-area d-flex">
+											<span><i class="icon-map-o"></i> {{ prop.places }}</span>
+											<span class="ml-auto"><a href="#">Manage</a></span>
+										</p>
 									</div>
-									<p>{{property.property.description|safe|truncatewords:5}}</p>
-									<hr>
-									<p class="bottom-area d-flex">
-										<span><i class="icon-map-o"></i> {{property.property.place}}</span>
-											
-										<span class="ml-auto"><a href="{% url 'accounts:add_feedback' property.property.slug %}">Write Your Feedback</a></span>
-									</p>
 								</div>
 							</div>
-                        </div>
-                    {% empty %}
-                        <h2> not available now ...</h2>
+					{% empty %}
+						<h2>No listings available yet.</h2>
 					{% endfor %}
 				</div>
 

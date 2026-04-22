@@ -44,6 +44,7 @@ class PropertyDetail(FormMixin, DetailView):
         context["related"] = Property.objects.filter(category=self.get_object().category)[:3]
         # include current user's latest booking for this property (if any)
         user_booking = None
+        payment_confirmed = False
         if hasattr(self.request, 'user') and self.request.user.is_authenticated:
             user_booking = PropertyBook.objects.filter(property=self.get_object(), user=self.request.user).order_by('-id').first()
         # If Stripe redirected back with a session_id, try to confirm the booking immediately (useful for testing without webhooks)
@@ -64,13 +65,19 @@ class PropertyDetail(FormMixin, DetailView):
                             booking.status = 'confirmed'
                             booking.save()
                             user_booking = booking
+                            payment_confirmed = True
                     except PropertyBook.DoesNotExist:
                         pass
             except Exception:
                 # Non-fatal: if Stripe lookup fails, continue without changing booking
                 pass
 
+        # If the redirect param indicates success and the latest booking is confirmed, show confirmation popup
+        if self.request.GET.get('booking') == 'success' and user_booking and user_booking.status == 'confirmed':
+            payment_confirmed = True
+
         context['user_booking'] = user_booking
+        context['payment_confirmed'] = payment_confirmed
         return context
 
     def post(self, request, *args, **kwargs):
@@ -92,13 +99,25 @@ class PropertyDetail(FormMixin, DetailView):
             if stripe_secret:
                 try:
                     stripe.api_key = stripe_secret
+                    # Build a human-friendly description (shown in Checkout) and attach dates to metadata
+                    description = f"{self.get_object().places} — {myform.date_from} to {myform.date_to}"
+                    product_image = None
+                    try:
+                        product_image = request.build_absolute_uri(self.get_object().image.url)
+                    except Exception:
+                        product_image = None
+
                     session = stripe.checkout.Session.create(
                         payment_method_types=['card'],
                         line_items=[{
                             'price_data': {
                                 'currency': 'usd',
                                 'unit_amount': int(self.get_object().price * 100),
-                                'product_data': {'name': self.get_object().name},
+                                'product_data': {
+                                    'name': self.get_object().name,
+                                    'description': description,
+                                    **({'images': [product_image]} if product_image else {}),
+                                },
                             },
                             'quantity': 1,
                         }],
@@ -108,8 +127,19 @@ class PropertyDetail(FormMixin, DetailView):
                         # attach booking id so we can confirm it in the webhook handler
                         metadata={
                             'booking_id': str(myform.id),
+                            'property_name': str(self.get_object().name),
+                            'date_from': myform.date_from.isoformat(),
+                            'date_to': myform.date_to.isoformat(),
                         },
                     )
+                    # Persist the Checkout session id to the booking so we can
+                    # reconcile payment state later (or in reservations view).
+                    try:
+                        myform.stripe_session_id = session.id
+                        myform.save()
+                    except Exception:
+                        # non-fatal: if saving the session id fails, continue
+                        pass
                     return redirect(session.url)
                 except Exception:
                     # If Stripe fails, continue and show pending page locally

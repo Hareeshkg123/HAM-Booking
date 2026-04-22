@@ -29,7 +29,9 @@
         
 		<h5><a href="{% url 'accounts:profile_edit' %}">Edit Profile</a></h5>
 		<h5><a href="{% url 'accounts:reservation' %}">My Reservations</a></h5>
-		<h5><a href="{% url 'accounts:profile_edit' %}">My Listing</a></h5>
+		{% if profile.is_host %}
+			<h5><a href="{% url 'accounts:mylisting' %}">My Listing</a></h5>
+		{% endif %}
 
 				{% if not profile.is_host %}
 					<form method="post" action="{% url 'accounts:become_host' %}">
