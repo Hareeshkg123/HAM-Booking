@@ -11,6 +11,29 @@ import stripe
 
 # Create your views here.
 
+
+def sync_booking_payment_status(booking):
+    stripe_key = getattr(settings, 'STRIPE_SECRET_KEY', None)
+    if (
+        booking.status != 'pending'
+        or not getattr(booking, 'stripe_session_id', None)
+        or not stripe_key
+    ):
+        return booking
+
+    try:
+        stripe.api_key = stripe_key
+        session = stripe.checkout.Session.retrieve(booking.stripe_session_id)
+        payment_status = session.get('payment_status') or getattr(session, 'payment_status', None)
+        if payment_status == 'paid':
+            booking.status = 'confirmed'
+            booking.save(update_fields=['status'])
+    except Exception:
+        # Non-fatal: leave the booking as-is if Stripe lookup fails.
+        pass
+
+    return booking
+
 def signup(request):
     if request.method == 'POST':
         signup_form = UserCreateForm(request.POST)
@@ -63,39 +86,23 @@ def profile_edit(request):
 
 @login_required
 def myreservation(request):
-    # Build a list of bookings with extra context (can_cancel) for the template
+    # Build a list of bookings with extra context for reservation actions.
     from django.utils import timezone
     bookings = PropertyBook.objects.filter(user=request.user).order_by('-id')
     booking_entries = []
     today = timezone.localdate()
-    # Attempt lightweight reconciliation for pending bookings that have a saved
-    # stripe_session_id: if Stripe reports the session is paid, mark confirmed.
-    stripe_key = getattr(settings, 'STRIPE_SECRET_KEY', None)
-    if stripe_key:
-        try:
-            stripe.api_key = stripe_key
-        except Exception:
-            stripe.api_key = None
     for b in bookings:
-        # If booking appears pending but has a Stripe session id, try to reconcile
-        if b.status == 'pending' and getattr(b, 'stripe_session_id', None) and stripe.api_key:
-            try:
-                sess = stripe.checkout.Session.retrieve(b.stripe_session_id)
-                payment_status = sess.get('payment_status') or getattr(sess, 'payment_status', None)
-                if payment_status == 'paid':
-                    b.status = 'confirmed'
-                    b.save()
-            except Exception:
-                # Non-fatal: leave booking as-is if Stripe lookup fails
-                pass
-    for b in bookings:
+        b = sync_booking_payment_status(b)
         can_cancel = False
         try:
-            if b.status != 'cancelled' and b.date_from > today:
+            if b.status != 'cancelled' and b.date_from >= today:
                 can_cancel = True
         except Exception:
             can_cancel = False
-        booking_entries.append({'booking': b, 'can_cancel': can_cancel})
+        booking_entries.append({
+            'booking': b,
+            'can_cancel': can_cancel,
+        })
 
     return render(request, 'profile/reservations.html', {'booking_list': booking_entries})
 
@@ -112,9 +119,10 @@ def cancel_reservation(request, pk):
     if booking.user != request.user:
         return redirect('accounts:reservation')
 
+    booking = sync_booking_payment_status(booking)
     today = timezone.localdate()
     if request.method == 'POST':
-        if booking.date_from > today and booking.status != 'cancelled':
+        if booking.date_from >= today and booking.status != 'cancelled':
             booking.status = 'cancelled'
             booking.save()
         return redirect('accounts:reservation')

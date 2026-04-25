@@ -3,6 +3,46 @@
 {% load bootstrap4 %}
 {% block body %}
 
+<style>
+	.empty-bookings-state {
+		padding: 4rem 2rem;
+		border: 1px solid #e7e2db;
+		border-radius: 24px;
+		background: linear-gradient(135deg, #fffaf5 0%, #fff 55%, #f7f9fc 100%);
+		box-shadow: 0 18px 45px rgba(26, 35, 52, 0.08);
+		text-align: center;
+	}
+
+	.empty-bookings-state__badge {
+		display: inline-block;
+		margin-bottom: 1.25rem;
+		padding: 0.55rem 1.2rem;
+		border-radius: 999px;
+		background: #ffe7d6;
+		color: #b85c38;
+		font-size: 1rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.empty-bookings-state__title {
+		margin-bottom: 0.85rem;
+		color: #1f2a44;
+		font-size: 2rem;
+		font-weight: 700;
+		line-height: 1.3;
+	}
+
+	.empty-bookings-state__text {
+		margin: 0 auto;
+		max-width: 620px;
+		color: #5f6b7a;
+		font-size: 1.2rem;
+		line-height: 1.8;
+	}
+</style>
+
 
 
 <div class="hero-wrap js-fullheight" style="background-image: url({% static 'images/portsaid.jpg'%});">
@@ -37,7 +77,7 @@
 									<p class="mb-1"><strong>Dates:</strong> {{ booking.date_from }} &mdash; {{ booking.date_to }}</p>
 									<p class="mb-1"><strong>Total:</strong> ${{ booking.total_cost }}</p>
 									<p class="mb-0"><strong>Status:</strong>
-										{% if booking.status == 'confirmed' %}Booked{% elif booking.status == 'cancelled' %}Cancelled{% else %}Pending{% endif %}
+										{% if booking.status == 'confirmed' %}Booked{% elif booking.status == 'cancelled' %}Cancelled{% else %}Booked{% endif %}
 									</p>
 								</div>
 								<div class="ml-3">
@@ -46,7 +86,7 @@
 										{% csrf_token %}
 										<button class="btn btn-outline-danger" type="submit">Cancel booking</button>
 									</form>
-									{% else %}
+									{% elif booking.status != 'cancelled' %}
 									<button class="btn btn-secondary" disabled>Cannot cancel</button>
 									{% endif %}
 								</div>
@@ -55,6 +95,17 @@
 					</div>
 					{% endwith %}
 					{% endfor %}
+					{% if not booking_list %}
+					<div class="col-12 ftco-animate">
+						<div class="empty-bookings-state">
+							<span class="empty-bookings-state__badge">Reservations</span>
+							<h3 class="empty-bookings-state__title">There are no bookings yet.</h3>
+							<p class="empty-bookings-state__text">
+								When you book a stay, all of your reservation details will appear here in one place.
+							</p>
+						</div>
+					</div>
+					{% endif %}
 				</div>
 
 

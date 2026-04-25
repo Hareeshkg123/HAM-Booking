@@ -9,6 +9,9 @@ staticfiles/
 
 # Environment
 .env
+.env.*
+!.env.example
+.venv/
 
 # IDEs
 .vscode/

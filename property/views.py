@@ -1,21 +1,7 @@
-from typing import Any, Dict
-from django.shortcuts import redirect, render
 import stripe
-from django.views.generic import ListView , DetailView , CreateView
-from .models import *
-from django.views.generic.edit import FormMixin
-from .forms import *
-from .filters import *
-from django_filters.views import FilterView
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from typing import Any, Dict
 from django.shortcuts import redirect, render
-import stripe
-from django.views.generic import ListView , DetailView , CreateView
-from .models import *
-from django.views.generic.edit import FormMixin
-from .forms import *
-from .filters import *
+from django.views.generic import CreateView, DetailView
+from django.views.generic.edit import DeleteView, FormMixin, UpdateView
 from django_filters.views import FilterView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy, reverse
@@ -23,6 +9,10 @@ from accounts.models import Profile
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+
+from .filters import *
+from .forms import *
+from .models import *
 
 # Create your views here.
 
@@ -38,6 +28,17 @@ class PropertyDetail(FormMixin, DetailView):
     model = Property
     template_name = 'property/property_detail.html'
     form_class = PropertyBookForm
+
+    def build_checkout_description(self, booking):
+        check_in = booking.date_from.strftime('%b %d, %Y')
+        check_out = booking.date_to.strftime('%b %d, %Y')
+        guest_label = 'guest' if booking.guest == 1 else 'guests'
+        child_label = 'child' if booking.children == 1 else 'children'
+        return (
+            f"{booking.property.places} | {check_in} - {check_out} | "
+            f"{booking.nights} nights | {booking.guest} {guest_label} | "
+            f"{booking.children} {child_label}"
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -106,15 +107,16 @@ class PropertyDetail(FormMixin, DetailView):
                         product_image = request.build_absolute_uri(self.get_object().image.url)
                     except Exception:
                         product_image = None
+                    description = self.build_checkout_description(myform)
 
                     session = stripe.checkout.Session.create(
                         payment_method_types=['card'],
                         line_items=[{
                             'price_data': {
                                 'currency': 'usd',
-                                'unit_amount': int(self.get_object().price * 100),
+                                'unit_amount': int(myform.total_cost * 100),
                                 'product_data': {
-                                    'name': self.get_object().name,
+                                    'name': f"{self.get_object().name} Stay",
                                     'description': description,
                                     **({'images': [product_image]} if product_image else {}),
                                 },
@@ -122,14 +124,20 @@ class PropertyDetail(FormMixin, DetailView):
                             'quantity': 1,
                         }],
                         mode='payment',
+                        customer_email=request.user.email or None,
                         success_url=request.build_absolute_uri(self.get_object().get_absolute_url()) + '?booking=success&session_id={CHECKOUT_SESSION_ID}',
                         cancel_url=request.build_absolute_uri(self.get_object().get_absolute_url()) + '?booking=cancelled',
                         # attach booking id so we can confirm it in the webhook handler
                         metadata={
                             'booking_id': str(myform.id),
                             'property_name': str(self.get_object().name),
+                            'property_place': str(self.get_object().places),
                             'date_from': myform.date_from.isoformat(),
                             'date_to': myform.date_to.isoformat(),
+                            'nights': str(myform.nights),
+                            'guest': str(myform.guest),
+                            'children': str(myform.children),
+                            'total_cost': str(myform.total_cost),
                         },
                     )
                     # Persist the Checkout session id to the booking so we can
@@ -155,7 +163,7 @@ class PropertyDetail(FormMixin, DetailView):
 class AddListing(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Property
     form_class = PropertyForm
-    template_name = 'property/property_add.html'
+    template_name = 'property/property_form.html'
     success_url = reverse_lazy('property:property_list')
     login_url = reverse_lazy('login')
 
@@ -175,7 +183,48 @@ class AddListing(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def form_valid(self, form):
         # set the owner to the logged-in user
         form.instance.owner = self.request.user
-        return super().form_valid(form)
+        self.object = form.save()
+        form.save_gallery_images(self.object)
+        return redirect(self.get_success_url())
+
+
+class OwnerPropertyMixin(LoginRequiredMixin, UserPassesTestMixin):
+    model = Property
+    login_url = reverse_lazy('login')
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Property.objects.none()
+        return Property.objects.filter(owner=self.request.user)
+
+    def test_func(self):
+        return bool(
+            self.request.user.is_authenticated
+            and self.get_object().owner == self.request.user
+        )
+
+    def handle_no_permission(self):
+        if not self.request.user.is_authenticated:
+            return super().handle_no_permission()
+        return redirect(reverse_lazy('accounts:mylisting'))
+
+
+class EditListing(OwnerPropertyMixin, UpdateView):
+    form_class = PropertyForm
+    template_name = 'property/property_form.html'
+
+    def form_valid(self, form):
+        self.object = form.save()
+        form.save_gallery_images(self.object)
+        return redirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse('accounts:mylisting')
+
+
+class DeleteListing(OwnerPropertyMixin, DeleteView):
+    template_name = 'property/property_confirm_delete.html'
+    success_url = reverse_lazy('accounts:mylisting')
 
 
 @csrf_exempt

@@ -26,9 +26,11 @@
           	<div class="row">
           		<div class="col-md-12 ftco-animate">
           			<div class="single-slider owl-carousel">
+						<div class="item">
+							<div class="hotel-img" style="background-image: url('{{object.image.url}}');"></div>
+						</div>
 
 						{% for image in object.property_image.all  %}
-
           				<div class="item">
           					<div class="hotel-img" style="background-image: url('{{image.image.url}}');"></div>
           				</div>

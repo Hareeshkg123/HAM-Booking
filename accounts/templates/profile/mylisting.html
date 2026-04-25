@@ -57,7 +57,10 @@
 										<hr>
 										<p class="bottom-area d-flex">
 											<span><i class="icon-map-o"></i> {{ prop.places }}</span>
-											<span class="ml-auto"><a href="#">Manage</a></span>
+											<span class="ml-auto">
+												<a href="{% url 'property:property_edit' prop.id %}" class="mr-3">Edit</a>
+												<a href="{% url 'property:property_delete' prop.id %}">Delete</a>
+											</span>
 										</p>
 									</div>
 								</div>

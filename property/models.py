@@ -77,9 +77,16 @@ COUNT = (
     (3,'3'),
     (4,'4'),
     (5,'5'),
-    
-    
-)    
+)
+
+CHILD_COUNT = (
+    (0, '0'),
+    (1, '1'),
+    (2, '2'),
+    (3, '3'),
+    (4, '4'),
+    (5, '5'),
+)
     
     
 class PropertyBook(models.Model):
@@ -89,7 +96,7 @@ class PropertyBook(models.Model):
     date_from = models.DateField(default=timezone.now)
     date_to = models.DateField(default=timezone.now)
     guest = models.IntegerField( choices= COUNT)
-    children =  models.IntegerField( choices= COUNT)
+    children =  models.IntegerField( choices= CHILD_COUNT)
     STATUS_CHOICES = (
         ('pending', 'Booked'),
         ('confirmed', 'Booked'),
