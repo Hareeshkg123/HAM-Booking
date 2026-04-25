@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block body %}
+
+<div class="hero-wrap js-fullheight" style="background-image: url({% static 'images/portsaid.jpg'%});">
+	<div class="overlay"></div>
+	<div class="container">
+		<div class="row no-gutters slider-text js-fullheight align-items-center justify-content-center"
+			data-scrollax-parent="true">
+			<div class="col-md-9 ftco-animate text-center" data-scrollax=" properties: { translateY: '70%' }">
+				<p class="breadcrumbs" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">
+					<span class="mr-2"><a href="{% url 'accounts:mylisting' %}">My Listings</a></span>
+					<span>Delete Listing</span>
+				</p>
+				<h1 class="mb-3 bread" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">Delete Listing</h1>
+			</div>
+		</div>
+	</div>
+</div>
+
+<section class="ftco-section ftco-degree-bg">
+	<div class="container">
+		<div class="row justify-content-center">
+			<div class="col-lg-7">
+				<div class="sidebar-wrap bg-light ftco-animate p-4 rounded">
+					<h3 class="heading mb-3">Remove "{{ object.name }}" permanently?</h3>
+					<p>This action cannot be undone and the listing will disappear from the home page.</p>
+					<form method="post" onsubmit="return confirm('Delete this listing permanently?');">
+						{% csrf_token %}
+						<button type="submit" class="btn btn-danger">Yes, delete listing</button>
+						<a href="{% url 'accounts:mylisting' %}" class="btn btn-outline-secondary">Keep listing</a>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+{% endblock body %}
