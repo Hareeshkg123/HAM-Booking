@@ -3,6 +3,7 @@ from django.shortcuts import redirect, render
 from django.views.generic import CreateView, DetailView
 from django.views.generic.edit import DeleteView, FormMixin, UpdateView
 from django_filters.views import FilterView
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy, reverse
 from accounts.models import Profile
@@ -22,6 +23,9 @@ class PropertyList(FilterView):
     paginate_by = 6
     filterset_class = PropertyFilter
     template_name = 'property/property_list.html'
+
+    def get_queryset(self):
+        return Property.objects.select_related('places', 'category', 'owner').order_by('-created_at', '-id')
 
 
 class PropertyDetail(FormMixin, DetailView):
@@ -164,7 +168,6 @@ class AddListing(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Property
     form_class = PropertyForm
     template_name = 'property/property_form.html'
-    success_url = reverse_lazy('property:property_list')
     login_url = reverse_lazy('login')
 
     def test_func(self):
@@ -175,16 +178,19 @@ class AddListing(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return bool(profile.is_host)
 
     def handle_no_permission(self):
-        # if user isn't a host, redirect to profile page (could be adjusted)
         if not self.request.user.is_authenticated:
             return super().handle_no_permission()
-        return redirect(reverse_lazy('accounts:profile'))
+        messages.warning(self.request, 'Enable hosting on your account before adding a listing.')
+        return redirect(reverse_lazy('accounts:become_host'))
+
+    def get_success_url(self):
+        return reverse('accounts:mylisting')
 
     def form_valid(self, form):
-        # set the owner to the logged-in user
         form.instance.owner = self.request.user
         self.object = form.save()
         form.save_gallery_images(self.object)
+        messages.success(self.request, 'Your listing has been created.')
         return redirect(self.get_success_url())
 
 

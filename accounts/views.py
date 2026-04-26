@@ -129,8 +129,9 @@ def cancel_reservation(request, pk):
     # If GET, redirect back
     return redirect('accounts:reservation')
 
+@login_required
 def mylisting(request):
-    property_list = Property.objects.filter(owner=request.user)
+    property_list = Property.objects.filter(owner=request.user).order_by('-created_at', '-id')
     return render(request , 'profile/mylisting.html', {'property_list' : property_list})
 
 
