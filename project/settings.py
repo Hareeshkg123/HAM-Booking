@@ -67,7 +67,6 @@ INSTALLED_APPS = [
     'bootstrap4',
     'django_summernote',
     'django_filters',
-    'axes',
 
 ]
 
