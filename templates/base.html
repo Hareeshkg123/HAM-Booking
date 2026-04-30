@@ -51,6 +51,8 @@
             {% with profile=request.user.user_profile.first %}
               {% if profile and profile.is_host %}
                 <li class="nav-item cta"><a href="{% url 'property:property_add' %}" class="nav-link"><span>Add listing</span></a></li>
+              {% elif profile and profile.host_requested %}
+                <li class="nav-item cta"><a href="{% url 'accounts:profile' %}" class="nav-link"><span>Host review pending</span></a></li>
               {% else %}
                 <li class="nav-item cta"><a href="{% url 'accounts:become_host' %}" class="nav-link"><span>Become host</span></a></li>
               {% endif %}
@@ -76,6 +78,19 @@
     </div>
   </nav>
   <!-- END nav -->
+
+  {% if messages %}
+  <div class="container mt-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   {% block body %}
 
@@ -179,9 +194,10 @@
   <script src="{% static 'js/bootstrap-datepicker.js'%}"></script>
   <script src="{% static 'js/jquery.timepicker.min.js'%}"></script>
   <script src="{% static 'js/scrollax.min.js'%}"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBVWaKrjvy3MaE7SQ74_uJiULgl1JY0H2s&sensor=false">
-  </script>
+  {% if GOOGLE_MAPS_API_KEY %}
+  <script src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY|urlencode }}"></script>
   <script src="{% static 'js/google-map.js'%}"></script>
+  {% endif %}
   <script src="{% static 'js/main.js'%}"></script>
 
 </body>

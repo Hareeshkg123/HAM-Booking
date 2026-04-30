@@ -16,6 +16,13 @@ from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _get_env_list(name, default=''):
+    raw_value = os.getenv(name, default)
+    return [item.strip() for item in raw_value.split(',') if item.strip()]
 
 
 # Quick-start development settings - unsuitable for production
@@ -30,9 +37,14 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-2hssdn31h6z=b6ei36mkzlg1rw
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Allow DEBUG to be set via env (useful for CI / production parity)
-DEBUG = os.getenv('DEBUG', 'True').lower() in ('1', 'true', 'yes')
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = _get_env_list('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver')
+PASSWORD_RESET_DOMAIN = os.getenv(
+    'PASSWORD_RESET_DOMAIN',
+    '127.0.0.1:8000' if DEBUG else (ALLOWED_HOSTS[0] if ALLOWED_HOSTS else 'localhost'),
+)
+PASSWORD_RESET_PROTOCOL = os.getenv('PASSWORD_RESET_PROTOCOL', 'http' if DEBUG else 'https')
 
 
 # Application definition
@@ -44,8 +56,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'axes',
     ##my apps 
-    'accounts',
+    'accounts.apps.AccountsConfig',
     'blog',
     'settings',
     'property',
@@ -154,6 +167,55 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Stripe configuration (read from environment)
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
 STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', '')
+
+# Authentication hardening
+AUTHENTICATION_BACKENDS = [
+    'project.backends.SafeAxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 1
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = None
+AXES_LOCKOUT_PARAMETERS = ['username', 'ip_address']
+AXES_HTTP_RESPONSE_CODE = 403
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'security': {
+            'format': '%(asctime)s %(levelname)s %(name)s %(message)s',
+        },
+    },
+    'handlers': {
+        'security_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'security.log',
+            'maxBytes': 1024 * 1024,
+            'backupCount': 5,
+            'formatter': 'security',
+        },
+    },
+    'loggers': {
+        'security': {
+            'handlers': ['security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['security_file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'axes': {
+            'handlers': ['security_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
 
 # Redirect users to home after logout
 LOGOUT_REDIRECT_URL = '/'

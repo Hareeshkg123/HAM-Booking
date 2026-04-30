@@ -12,8 +12,8 @@
 			data-scrollax-parent="true">
 			<div class="col-md-9 ftco-animate text-center" data-scrollax=" properties: { translateY: '70%' }">
 				<p class="breadcrumbs" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }"><span
-						class="mr-2"><a href="index.html">Home</a></span> <span>Hotel</span></p>
-				<h1 class="mb-3 bread" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">{{my_category|title}}</h1>
+						class="mr-2"><a href="/">Home</a></span> <span>My Listings</span></p>
+				<h1 class="mb-3 bread" data-scrollax="properties: { translateY: '30%', opacity: 1.6 }">My Listings</h1>
 			</div>
 		</div>
 	</div>
@@ -24,6 +24,10 @@
 	<div class="container">
 		<div class="row">
 			<div class="col-lg-9">
+				<div class="d-flex justify-content-between align-items-center mb-4">
+					<h3 class="mb-0">Your Listings</h3>
+					<a href="{% url 'property:property_add' %}" class="btn btn-primary">Add listing</a>
+				</div>
 				<div class="row">
 					
 					{% for prop in property_list %}

@@ -218,3 +218,34 @@ class HostListingManagementTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn('extra_images', form.errors)
+
+
+class PropertyDetailSanitizationTests(TestCase):
+    def setUp(self):
+        self.host = User.objects.create_user(username='host2', password='secret123')
+        self.place = Place.objects.create(
+            name='Alexandria',
+            image=SimpleUploadedFile('place-2.jpg', b'place-image', content_type='image/jpeg'),
+        )
+        self.category = Category.objects.create(name='Villa', icon='villa')
+        self.property = Property.objects.create(
+            owner=self.host,
+            name='Sea View Villa',
+            image=SimpleUploadedFile('villa.jpg', b'listing-image', content_type='image/jpeg'),
+            price=250,
+            description=(
+                '<p>Roomy <strong>sea-view</strong> stay.</p>'
+                '<script>xss-property-script</script>'
+                '<img src="x" onerror="xss-property-image">'
+            ),
+            places=self.place,
+            category=self.category,
+        )
+
+    def test_property_detail_sanitizes_stored_description(self):
+        response = self.client.get(reverse('property:property_detail', args=[self.property.slug]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<strong>sea-view</strong>', html=False)
+        self.assertNotContains(response, 'xss-property-script')
+        self.assertNotContains(response, 'onerror=')

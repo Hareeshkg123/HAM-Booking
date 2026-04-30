@@ -33,13 +33,12 @@
 			<h5><a href="{% url 'accounts:mylisting' %}">My Listing</a></h5>
 		{% endif %}
 
-				{% if not profile.is_host %}
-					<form method="post" action="{% url 'accounts:become_host' %}">
-						{% csrf_token %}
-						<button type="submit" class="btn btn-primary mt-3">Become a host</button>
-					</form>
+				{% if profile.is_host %}
+					<p class="mt-3"><strong>Host</strong>: Your hosting access is active.</p>
+				{% elif profile.host_requested %}
+					<p class="mt-3"><strong>Host application</strong>: Your request is under review.</p>
 				{% else %}
-					<p class="mt-3"><strong>Host</strong>: You can add listings now.</p>
+					<a href="{% url 'accounts:become_host' %}" class="btn btn-primary mt-3">Apply to become a host</a>
 				{% endif %}
 
 

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static content_safety %}
 {% load bootstrap4 %}
 
 {% block body %}
@@ -52,7 +52,7 @@
     							<i class="icon-star-o"></i>
     							8 Rating</span>
     						</p>
-    						<p> {{object.description|safe}}</p>
+    						<div>{{ object.description|sanitize_html }}</div>
     						
           		</div>
           		<div class="col-md-12 hotel-single ftco-animate mb-5 mt-4">
@@ -252,7 +252,7 @@
 					    							<span class="price per-price">${{property.price}}<br><small>/night</small></span>
 				    							</div>
 				    						</div>
-				    						<p>{{property.description|safe | truncatewords:30}}</p>
+				    						<p>{{ property.description|sanitize_html|striptags|truncatewords:30 }}</p>
 				    						<hr>
 				    						<p class="bottom-area d-flex">
 				    							<span><i class="icon-map-o"></i> {{property.places}}</span> 
