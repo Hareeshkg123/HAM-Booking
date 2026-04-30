@@ -77,7 +77,7 @@
 						<div class="block-27">
 							<ul>
 								{% if page_obj.has_previous %}
-								<li><a href="?page={{ page_obj.previous_page_number }}">&lt;</a></li>
+								<li><a href="?name={{ name_query|urlencode }}&place={{ place_query|urlencode }}&page={{ page_obj.previous_page_number }}">&lt;</a></li>
 								{% else %}
 								<li class="disabled"><a href="#">&lt;</a></li>
 								{% endif %}
@@ -88,7 +88,7 @@
 									<li class="active"><span>{{i}}</span></li>
 									{% else %}
 
-									<li><a href="?page={{i}}">{{i}}</a></li>
+									<li><a href="?name={{ name_query|urlencode }}&place={{ place_query|urlencode }}&page={{i}}">{{i}}</a></li>
 				
 									{% endif %}
 
@@ -99,7 +99,7 @@
 								
 
 								{% if page_obj.has_next %}
-								<li><a href="?page={{ page_obj.next_page_number }}">&gt;</a></li>
+								<li><a href="?name={{ name_query|urlencode }}&place={{ place_query|urlencode }}&page={{ page_obj.next_page_number }}">&gt;</a></li>
 								{% else %}
 								<li class="disabled"><a href="#">&gt;</a></li>
 								{% endif %}

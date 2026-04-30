@@ -11,6 +11,8 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
+from project.audit import get_client_ip, security_log
+
 from .filters import *
 from .forms import *
 from .models import *
@@ -71,11 +73,26 @@ class PropertyDetail(FormMixin, DetailView):
                             booking.save()
                             user_booking = booking
                             payment_confirmed = True
+                            security_log.info(
+                                'booking.payment.confirmed booking_id=%s user_id=%s source=redirect session_id=%s',
+                                booking.id,
+                                booking.user_id,
+                                session_id,
+                            )
                     except PropertyBook.DoesNotExist:
-                        pass
+                        security_log.warning(
+                            'booking.payment.confirmation_missing booking_id=%s session_id=%s',
+                            booking_id,
+                            session_id,
+                        )
             except Exception:
                 # Non-fatal: if Stripe lookup fails, continue without changing booking
-                pass
+                security_log.warning(
+                    'booking.payment.confirmation_lookup_failed property_id=%s session_id=%s',
+                    self.get_object().id,
+                    session_id,
+                    exc_info=True,
+                )
 
         # If the redirect param indicates success and the latest booking is confirmed, show confirmation popup
         if self.request.GET.get('booking') == 'success' and user_booking and user_booking.status == 'confirmed':
@@ -88,6 +105,11 @@ class PropertyDetail(FormMixin, DetailView):
     def post(self, request, *args, **kwargs):
         # require login for booking — redirect anonymous users to the login page
         if not request.user.is_authenticated:
+            security_log.warning(
+                'booking.create.denied_anonymous property_id=%s ip=%s',
+                self.get_object().id,
+                get_client_ip(request),
+            )
             return redirect(f"{settings.LOGIN_URL}?next={request.path}")
 
         form = self.get_form()
@@ -98,6 +120,14 @@ class PropertyDetail(FormMixin, DetailView):
             # mark booking as pending — we'll confirm after successful payment webhook
             myform.status = 'pending'
             myform.save()
+            security_log.info(
+                'booking.created booking_id=%s property_id=%s user_id=%s status=%s ip=%s',
+                myform.id,
+                self.get_object().id,
+                request.user.id,
+                myform.status,
+                get_client_ip(request),
+            )
 
             # Attempt to create a Stripe Checkout session if API key is configured.
             stripe_secret = getattr(settings, 'STRIPE_SECRET_KEY', None)
@@ -111,6 +141,12 @@ class PropertyDetail(FormMixin, DetailView):
                         product_image = request.build_absolute_uri(self.get_object().image.url)
                     except Exception:
                         product_image = None
+                        security_log.warning(
+                            'booking.checkout.image_url_failed booking_id=%s property_id=%s',
+                            myform.id,
+                            self.get_object().id,
+                            exc_info=True,
+                        )
                     description = self.build_checkout_description(myform)
 
                     session = stripe.checkout.Session.create(
@@ -149,18 +185,50 @@ class PropertyDetail(FormMixin, DetailView):
                     try:
                         myform.stripe_session_id = session.id
                         myform.save()
+                        security_log.info(
+                            'booking.checkout.session_created booking_id=%s property_id=%s user_id=%s stripe_session_id=%s',
+                            myform.id,
+                            self.get_object().id,
+                            request.user.id,
+                            session.id,
+                        )
                     except Exception:
                         # non-fatal: if saving the session id fails, continue
-                        pass
+                        security_log.warning(
+                            'booking.checkout.session_save_failed booking_id=%s property_id=%s stripe_session_id=%s',
+                            myform.id,
+                            self.get_object().id,
+                            session.id,
+                            exc_info=True,
+                        )
                     return redirect(session.url)
                 except Exception:
                     # If Stripe fails, continue and show pending page locally
+                    security_log.warning(
+                        'booking.checkout.create_failed booking_id=%s property_id=%s user_id=%s',
+                        myform.id,
+                        self.get_object().id,
+                        request.user.id,
+                        exc_info=True,
+                    )
                     return redirect(self.get_object().get_absolute_url())
 
             # If no Stripe configured, just redirect back to property detail with pending state
+            security_log.warning(
+                'booking.checkout.skipped_missing_stripe_key booking_id=%s property_id=%s user_id=%s',
+                myform.id,
+                self.get_object().id,
+                request.user.id,
+            )
             return redirect(self.get_object().get_absolute_url())
         else:
             # re-render the detail page with form errors
+            security_log.info(
+                'booking.create.invalid property_id=%s user_id=%s ip=%s',
+                self.get_object().id,
+                request.user.id,
+                get_client_ip(request),
+            )
             return self.get(request, *args, **kwargs)
 
 
@@ -180,7 +248,21 @@ class AddListing(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def handle_no_permission(self):
         if not self.request.user.is_authenticated:
             return super().handle_no_permission()
-        messages.warning(self.request, 'Enable hosting on your account before adding a listing.')
+        profile, _ = Profile.objects.get_or_create(user=self.request.user)
+        if profile.host_requested:
+            security_log.warning(
+                'listing.create.denied_pending_host user_id=%s ip=%s',
+                self.request.user.id,
+                get_client_ip(self.request),
+            )
+            messages.info(self.request, 'Your host application is under review.')
+            return redirect(reverse_lazy('accounts:profile'))
+        security_log.warning(
+            'listing.create.denied_not_host user_id=%s ip=%s',
+            self.request.user.id,
+            get_client_ip(self.request),
+        )
+        messages.warning(self.request, 'Apply for hosting on your account before adding a listing.')
         return redirect(reverse_lazy('accounts:become_host'))
 
     def get_success_url(self):
@@ -190,6 +272,12 @@ class AddListing(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         form.instance.owner = self.request.user
         self.object = form.save()
         form.save_gallery_images(self.object)
+        security_log.info(
+            'listing.created property_id=%s owner_user_id=%s ip=%s',
+            self.object.id,
+            self.request.user.id,
+            get_client_ip(self.request),
+        )
         messages.success(self.request, 'Your listing has been created.')
         return redirect(self.get_success_url())
 
@@ -212,6 +300,12 @@ class OwnerPropertyMixin(LoginRequiredMixin, UserPassesTestMixin):
     def handle_no_permission(self):
         if not self.request.user.is_authenticated:
             return super().handle_no_permission()
+        security_log.warning(
+            'listing.modify.denied user_id=%s property_id=%s ip=%s',
+            self.request.user.id,
+            self.kwargs.get('pk'),
+            get_client_ip(self.request),
+        )
         return redirect(reverse_lazy('accounts:mylisting'))
 
 
@@ -222,6 +316,12 @@ class EditListing(OwnerPropertyMixin, UpdateView):
     def form_valid(self, form):
         self.object = form.save()
         form.save_gallery_images(self.object)
+        security_log.info(
+            'listing.updated property_id=%s owner_user_id=%s ip=%s',
+            self.object.id,
+            self.request.user.id,
+            get_client_ip(self.request),
+        )
         return redirect(self.get_success_url())
 
     def get_success_url(self):
@@ -231,6 +331,16 @@ class EditListing(OwnerPropertyMixin, UpdateView):
 class DeleteListing(OwnerPropertyMixin, DeleteView):
     template_name = 'property/property_confirm_delete.html'
     success_url = reverse_lazy('accounts:mylisting')
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        security_log.info(
+            'listing.deleted property_id=%s owner_user_id=%s ip=%s',
+            self.object.id,
+            request.user.id,
+            get_client_ip(request),
+        )
+        return super().delete(request, *args, **kwargs)
 
 
 @csrf_exempt
@@ -246,15 +356,28 @@ def stripe_webhook(request):
             event = _stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
         except ValueError:
             # Invalid payload
+            security_log.warning(
+                'stripe.webhook.invalid_payload ip=%s',
+                get_client_ip(request),
+            )
             return HttpResponse(status=400)
         except _stripe.error.SignatureVerificationError:
             # Invalid signature
+            security_log.warning(
+                'stripe.webhook.invalid_signature ip=%s',
+                get_client_ip(request),
+            )
             return HttpResponse(status=400)
     else:
-        # No webhook secret configured: try to parse without verification (development only)
+        # No webhook secret configured:
         try:
             event = _stripe.Event.construct_from(_stripe.util.json.loads(payload), _stripe.api_key)
         except Exception:
+            security_log.warning(
+                'stripe.webhook.parse_failed ip=%s',
+                get_client_ip(request),
+                exc_info=True,
+            )
             return HttpResponse(status=400)
 
     # Handle the checkout.session.completed event
@@ -267,9 +390,17 @@ def stripe_webhook(request):
                 booking = PropertyBook.objects.get(id=int(booking_id))
                 booking.status = 'confirmed'
                 booking.save()
+                security_log.info(
+                    'booking.payment.confirmed booking_id=%s user_id=%s source=webhook',
+                    booking.id,
+                    booking.user_id,
+                )
             except PropertyBook.DoesNotExist:
                 # nothing to do if booking not found
-                pass
+                security_log.warning(
+                    'booking.payment.webhook_missing booking_id=%s',
+                    booking_id,
+                )
 
     return HttpResponse(status=200)
 

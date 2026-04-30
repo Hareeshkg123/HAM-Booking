@@ -10,6 +10,7 @@ class Profile(models.Model):
     phone_number = models.CharField(max_length=16 , blank=True, null=True)
     address = models.CharField(max_length=50 , blank=True, null=True)
     is_host = models.BooleanField(default=False)
+    host_requested = models.BooleanField(default=False)
 
 
     def __str__(self):

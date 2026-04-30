@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block body %}
 <div class="container my-5">
-  <h2>Become a host</h2>
-  <p>Click the button below to enable hosting features for your account.</p>
+  <h2>Apply to become a host</h2>
+  <p>Submit your host application for admin review. Hosting is not enabled until your application is approved.</p>
   <form method="post">
     {% csrf_token %}
-    <button class="btn btn-primary">Enable hosting</button>
+    <button class="btn btn-primary">Submit application</button>
     <a href="{% url 'accounts:profile' %}" class="btn btn-link">Cancel</a>
   </form>
 </div>
