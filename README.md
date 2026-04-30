@@ -33,4 +33,4 @@ To contribute to the project, follow these steps:
 
 ## Credits
 
-This project was created by [Mahmoud shaker]. If you have any questions or feedback, please contact me at [info@hambooking.com].
+This project was created by [Amal, Merlinrose & Hareesh]. If you have any questions or feedback, please contact me at [info@hambooking.com].
