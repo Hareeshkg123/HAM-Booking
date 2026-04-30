@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'bootstrap4',
     'django_summernote',
     'django_filters',
+    'axes',
 
 ]
 
@@ -218,3 +219,13 @@ LOGGING = {
 
 # Redirect users to home after logout
 LOGOUT_REDIRECT_URL = '/'
+
+# Brute-force protection via django-axes
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 0.1
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = None

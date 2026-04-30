@@ -12,7 +12,7 @@ from axes.utils import reset
 
 from accounts.models import Profile
 from accounts.views import sync_booking_payment_status
-from property.models import Category, Place, Property, PropertyBook
+from property.models import BookingCancellationAudit, Category, Place, Property, PropertyBook
 
 
 class ReservationActionsTests(TestCase):
@@ -76,15 +76,29 @@ class ReservationActionsTests(TestCase):
             status='pending',
         )
 
-        with self.assertLogs('security', level='INFO') as captured_logs:
-            response = self.client.post(reverse('accounts:cancel_reservation', args=[booking.id]))
+        response = self.client.post(
+            reverse('accounts:cancel_reservation', args=[booking.id]),
+            HTTP_X_FORWARDED_FOR='203.0.113.9',
+            HTTP_USER_AGENT='AuditTrailTest/1.0',
+        )
 
         self.assertRedirects(response, reverse('accounts:reservation'))
         booking.refresh_from_db()
         self.assertEqual(booking.status, 'cancelled')
-        self.assertTrue(
-            any('booking.cancelled' in message for message in captured_logs.output)
-        )
+        self.assertIsNotNone(booking.cancelled_at)
+        self.assertEqual(booking.cancelled_by, self.user)
+        self.assertEqual(booking.cancellation_ip_address, '203.0.113.9')
+
+        audit = BookingCancellationAudit.objects.get(booking=booking)
+        self.assertEqual(audit.actor, self.user)
+        self.assertEqual(audit.ip_address, '203.0.113.9')
+        self.assertEqual(audit.user_agent, 'AuditTrailTest/1.0')
+        self.assertEqual(audit.previous_status, 'pending')
+        self.assertEqual(audit.new_status, 'cancelled')
+        self.assertEqual(audit.before_snapshot['status'], 'pending')
+        self.assertEqual(audit.after_snapshot['status'], 'cancelled')
+        self.assertIsNone(audit.before_snapshot['cancelled_at'])
+        self.assertIsNotNone(audit.after_snapshot['cancelled_at'])
 
     @patch('accounts.views.stripe.checkout.Session.retrieve')
     @patch('accounts.views.settings.STRIPE_SECRET_KEY', 'test_secret')

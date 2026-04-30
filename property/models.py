@@ -98,11 +98,20 @@ class PropertyBook(models.Model):
     guest = models.IntegerField( choices= COUNT)
     children =  models.IntegerField( choices= CHILD_COUNT)
     STATUS_CHOICES = (
-        ('pending', 'Booked'),
-        ('confirmed', 'Booked'),
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
         ('cancelled', 'Cancelled'),
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        User,
+        related_name='cancelled_bookings',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    cancellation_ip_address = models.GenericIPAddressField(null=True, blank=True)
     
     def __str__(self):
         return str(self.property)
@@ -123,4 +132,32 @@ class PropertyBook(models.Model):
             return int(self.property.price) * self.nights
         except Exception:
             return 0
+
+
+class BookingCancellationAudit(models.Model):
+    booking = models.ForeignKey(
+        PropertyBook,
+        related_name='cancellation_audits',
+        on_delete=models.CASCADE,
+    )
+    actor = models.ForeignKey(
+        User,
+        related_name='booking_cancellation_audits',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    cancelled_at = models.DateTimeField(default=timezone.now)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    previous_status = models.CharField(max_length=20)
+    new_status = models.CharField(max_length=20)
+    before_snapshot = models.JSONField()
+    after_snapshot = models.JSONField()
+
+    class Meta:
+        ordering = ['-cancelled_at', '-id']
+
+    def __str__(self):
+        return f'Cancellation audit for booking {self.booking_id}'
             
