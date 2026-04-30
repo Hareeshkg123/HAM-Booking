@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -32,8 +33,12 @@ def _get_env_list(name, default=''):
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# Read SECRET_KEY from the environment, fallback to the existing dev key if not set
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-2hssdn31h6z=b6ei36mkzlg1rwj2v!+66!-*vk!k+gf3saes%7')
+# SECRET_KEY must be set via environment variable — no hardcoded fallback
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    print('ERROR: SECRET_KEY environment variable is not set. This is required for secure operation.')
+    print('Please set SECRET_KEY in your .env file or environment variables before running this application.')
+    sys.exit(1)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Allow DEBUG to be set via env (useful for CI / production parity)
