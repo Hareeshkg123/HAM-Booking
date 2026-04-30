@@ -77,7 +77,7 @@
 									<p class="mb-1"><strong>Dates:</strong> {{ booking.date_from }} &mdash; {{ booking.date_to }}</p>
 									<p class="mb-1"><strong>Total:</strong> ${{ booking.total_cost }}</p>
 									<p class="mb-0"><strong>Status:</strong>
-										{% if booking.status == 'confirmed' %}Booked{% elif booking.status == 'cancelled' %}Cancelled{% else %}Booked{% endif %}
+										{% if booking.status == 'confirmed' %}Confirmed{% elif booking.status == 'cancelled' %}Cancelled{% else %}Pending Payment{% endif %}
 									</p>
 								</div>
 								<div class="ml-3">

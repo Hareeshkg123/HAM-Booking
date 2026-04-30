@@ -7,9 +7,34 @@ from django.contrib import messages
 from property.models import *
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
+from django.db import transaction
 import stripe
 
 # Create your views here.
+
+
+def get_client_ip(request):
+    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
+def booking_audit_snapshot(booking):
+    return {
+        'id': booking.id,
+        'user_id': booking.user_id,
+        'property_id': booking.property_id,
+        'stripe_session_id': booking.stripe_session_id,
+        'date_from': booking.date_from.isoformat() if booking.date_from else None,
+        'date_to': booking.date_to.isoformat() if booking.date_to else None,
+        'guest': booking.guest,
+        'children': booking.children,
+        'status': booking.status,
+        'cancelled_at': booking.cancelled_at.isoformat() if booking.cancelled_at else None,
+        'cancelled_by_id': booking.cancelled_by_id,
+        'cancellation_ip_address': booking.cancellation_ip_address,
+    }
 
 
 def sync_booking_payment_status(booking):
@@ -24,8 +49,9 @@ def sync_booking_payment_status(booking):
     try:
         stripe.api_key = stripe_key
         session = stripe.checkout.Session.retrieve(booking.stripe_session_id)
-        payment_status = session.get('payment_status') or getattr(session, 'payment_status', None)
-        if payment_status == 'paid':
+        payment_status = getattr(session, 'payment_status', None)
+        session_status = getattr(session, 'status', None)
+        if payment_status == 'paid' or session_status == 'complete':
             booking.status = 'confirmed'
             booking.save(update_fields=['status'])
     except Exception:
@@ -59,6 +85,7 @@ def profile(request):
 
 
 
+@login_required
 def profile_edit(request):
     profile = Profile.objects.get(user = request.user)
     if request.method == 'POST':
@@ -123,8 +150,35 @@ def cancel_reservation(request, pk):
     today = timezone.localdate()
     if request.method == 'POST':
         if booking.date_from >= today and booking.status != 'cancelled':
-            booking.status = 'cancelled'
-            booking.save()
+            cancelled_at = timezone.now()
+            ip_address = get_client_ip(request)
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            before_snapshot = booking_audit_snapshot(booking)
+            previous_status = booking.status
+
+            with transaction.atomic():
+                booking.status = 'cancelled'
+                booking.cancelled_at = cancelled_at
+                booking.cancelled_by = request.user
+                booking.cancellation_ip_address = ip_address
+                booking.save(update_fields=[
+                    'status',
+                    'cancelled_at',
+                    'cancelled_by',
+                    'cancellation_ip_address',
+                ])
+
+                BookingCancellationAudit.objects.create(
+                    booking=booking,
+                    actor=request.user,
+                    cancelled_at=cancelled_at,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    previous_status=previous_status,
+                    new_status=booking.status,
+                    before_snapshot=before_snapshot,
+                    after_snapshot=booking_audit_snapshot(booking),
+                )
         return redirect('accounts:reservation')
     # If GET, redirect back
     return redirect('accounts:reservation')

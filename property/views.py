@@ -153,7 +153,9 @@ class PropertyDetail(FormMixin, DetailView):
                     # If Stripe fails, continue and show pending page locally
                     return redirect(self.get_object().get_absolute_url())
 
-            # If no Stripe configured, just redirect back to property detail with pending state
+            # No Stripe configured — confirm the booking immediately (no payment required)
+            myform.status = 'confirmed'
+            myform.save(update_fields=['status'])
             return redirect(self.get_object().get_absolute_url())
         else:
             # re-render the detail page with form errors
@@ -235,21 +237,18 @@ def stripe_webhook(request):
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
     webhook_secret = getattr(settings, 'STRIPE_WEBHOOK_SECRET', None)
 
-    if webhook_secret:
-        try:
-            event = _stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
-        except ValueError:
-            # Invalid payload
-            return HttpResponse(status=400)
-        except _stripe.error.SignatureVerificationError:
-            # Invalid signature
-            return HttpResponse(status=400)
-    else:
-        # No webhook secret configured: try to parse without verification (development only)
-        try:
-            event = _stripe.Event.construct_from(_stripe.util.json.loads(payload), _stripe.api_key)
-        except Exception:
-            return HttpResponse(status=400)
+    if not webhook_secret:
+        # Reject all webhook requests if no secret is configured — never process unverified events
+        return HttpResponse(status=400)
+
+    try:
+        event = _stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except ValueError:
+        # Invalid payload
+        return HttpResponse(status=400)
+    except _stripe.error.SignatureVerificationError:
+        # Invalid signature
+        return HttpResponse(status=400)
 
     # Handle the checkout.session.completed event
     if event['type'] == 'checkout.session.completed':
